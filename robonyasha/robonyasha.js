@@ -12,6 +12,7 @@ const SPEED_MIN = 0.3;
 const SPEED_MAX = 0.6;
 
 var SPEED = 0.4;
+var NECK_ANGLE = 80;
 
 var motor = require('@amperka/motor');
 var leftMotor = motor.connect(motor.MotorShield.M1);
@@ -29,11 +30,12 @@ var ultrasonic = require('@amperka/ultrasonic').connect({
 });
 
 var neck = require('@amperka/servo').connect(P8);
-neck.write(70);
+neck.write(NECK_ANGLE);
 
 var led = require('@amperka/led');
 var redLed = led.connect(P1);
 var blueLed = led.connect(P2);
+var greenLed = led.connect(A0);
 
 var buzzer = require('@amperka/buzzer').connect(P3);
 
@@ -143,6 +145,9 @@ function turnRight() {
 
 receiver.on('receive', function(code, repeat) {
   switch(code) {
+    case receiver.keys.POWER:
+      load();
+      break;
     case receiver.keys.TOP:
       curAction = ACTION.FORWARD;
       performAction(curAction);
@@ -171,13 +176,25 @@ receiver.on('receive', function(code, repeat) {
       SPEED = Math.max(SPEED - 0.05, SPEED_MIN);
       performAction(curAction);
       break;
+    case receiver.keys.TOP_LEFT:
+      NECK_ANGLE += 1;
+      neck.write(NECK_ANGLE);
+      break;
+    case receiver.keys.TOP_RIGHT:
+      NECK_ANGLE -= 1;
+      neck.write(NECK_ANGLE);
+      break;
     case receiver.keys.RED:
       if (!repeat) redLed.toggle();
       break;
     case receiver.keys.BLUE:
       if (!repeat) blueLed.toggle();
       break;
+    case receiver.keys.GREEN:
+      if (!repeat) greenLed.toggle();
+      break;
     default:
+      console.log('Key with code', code, 'was just pressed');
       buzzer.frequency(5*(code % 1000));
       buzzer.beep(0.3);
       break;
