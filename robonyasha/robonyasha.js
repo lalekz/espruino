@@ -41,7 +41,18 @@ var buzzer = require('@amperka/buzzer').connect(P3);
 
 var curAction = ACTION.STOP;
 
-function cruiseControl(curMotor, speed) {
+var leftStuckTimeout = { timeout: null };
+var rightStuckTimeout = { timeout: null };
+
+function resetStuckTimeout(stuckTimeout) {
+  if (stuckTimeout.timeout) clearTimeout(stuckTimeout.timeout);
+  stuckTimeout.timeout = setTimeout(function() {
+    curAction = ACTION.STOP;
+    performAction(ACTION.STOP);
+  }, 2000);
+}
+
+function cruiseControl(curMotor, speed, stuckTimeout) {
   var WHEEL_LENGTH = 195;
   var CRUISESPEED = Math.abs(speed);
   var DELTAV = 0.01;
@@ -55,12 +66,15 @@ function cruiseControl(curMotor, speed) {
     counter++;
     if (counter % 12 !== 0) return;
     var deltaTime = getTime() - lastTime;
-    var speed = WHEEL_LENGTH / deltaTime / 1000;
+    var measuredSpeed = WHEEL_LENGTH / deltaTime / 1000;
     lastTime = getTime();
-    if (speed < CRUISESPEED && Math.abs(V) < 1) {
-      V = V + DELTAV;
-    } else if (speed > CRUISESPEED && Math.abs(V) > 0){
-      V = V - DELTAV;
+
+    resetStuckTimeout(stuckTimeout);
+
+    if (measuredSpeed < CRUISESPEED && Math.abs(V) < 1) {
+      V += DELTAV;
+    } else if (measuredSpeed > CRUISESPEED && Math.abs(V) > 0){
+      V -= DELTAV;
     }
     curMotor.write(V);
   };
@@ -73,16 +87,16 @@ function stopMotors() {
 
 function startMotors(left, right) {
   if (left != 0) {
-    leftEncoder.on('white', cruiseControl(leftMotor, left));
-  }
-  else {
+    resetStuckTimeout(leftStuckTimeout);
+    leftEncoder.on('white', cruiseControl(leftMotor, left, leftStuckTimeout));
+  } else {
     leftMotor.write(0);
   }
 
   if (right != 0) {
-    rightEncoder.on('white', cruiseControl(rightMotor, right));
-  }
-  else {
+    resetStuckTimeout(rightStuckTimeout);
+    rightEncoder.on('white', cruiseControl(rightMotor, right, rightStuckTimeout));
+  } else {
     rightMotor.write(0);
   }
 }
